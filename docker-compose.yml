@@ -1,0 +1,35 @@
+# Sobe o FiscalHub + PostgreSQL num servidor (VPS) com Docker.
+#   1. cp .env.example .env  e preencha ENCRYPTION_KEY, POSTGRES_PASSWORD, ADMIN_*
+#   2. docker compose up -d
+#   3. docker compose exec app node dist/seed.js      (primeira vez: cria admin e regras)
+# Coloque um proxy com HTTPS na frente (Caddy, Nginx, Traefik ou o painel da hospedagem).
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fiscalhub
+      POSTGRES_USER: fiscalhub
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+    volumes:
+      - banco:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fiscalhub"]
+      interval: 10s
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://fiscalhub:${POSTGRES_PASSWORD}@db:5432/fiscalhub
+      DATA_DIR: /dados
+    volumes:
+      - arquivos:/dados
+    ports:
+      - "127.0.0.1:3000:3000"
+volumes:
+  banco:
+  arquivos:
